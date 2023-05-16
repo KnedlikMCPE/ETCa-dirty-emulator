@@ -298,8 +298,10 @@ int main(int argc, char** argv) {
 
                 case 0b1011:
                     if ((PAGE << 16) + REG_B == 0xC) {
+                        // SDL
                         SDL_SetRenderDrawColor(renderer, memory[0x4], memory[0x6], memory[0x8], memory[0xA]);
                         SDL_RenderDrawPoint(renderer, memory[0x0], memory[0x2]);
+                        // SDL
                     }
                     memory[PAGE << 16 + REG_B] = *REG_A;
                     break;
