@@ -63,8 +63,8 @@ int main(int argc, char** argv) {
         instruction = instruction | memory[counter];
         if ((instruction & 0b1111000000000000) == 0b0001000000000000) {
             uint8_t opcode = (instruction & 0b0000111100000000) >> 8;
-            int16_t *REG_A = &REGS[instruction & 0b0000000011100000];
-            int16_t *REG_B = &REGS[instruction & 0b0000000000011100];
+            int16_t *REG_A = &REGS[(instruction & 0b0000000011100000) >> 5];
+            int16_t *REG_B = &REGS[(instruction & 0b0000000000011100) >> 2];
 
             int16_t in_a;
             int16_t in_b;
@@ -188,7 +188,20 @@ int main(int argc, char** argv) {
                     break;
 
                 case 0b1100:
-                    *REG_A = (*REG_A << 5) | *REG_B;
+                    if ((instruction & 0b0000000000011100) == 0b11100) {
+                        *REG_A = memory[REGS[6]];
+                        *REG_A = *REG_A | (memory[REGS[6] + 1] << 8);
+                        REGS[6] += 2;
+                    }
+                    break;
+
+                case 0b1101:
+                    if ((instruction & 0b0000000011100000) == 0b11100000) {
+                        memory[REGS[6]] = *REG_B;
+                        memory[REGS[6] + 1] = *REG_B >> 8;
+                        REGS[6] -= 2;
+                    }
+                    break;
 
                 case 0b1110:
                     switch (*REG_B) {
@@ -346,6 +359,12 @@ int main(int argc, char** argv) {
                 case 0b1100:
                     *REG_A = (*REG_A << 5) | REG_B;
 
+                case 0b1101:
+                    if ((instruction & 0b0000000011000000) == 0b11000000) {
+                        memory[REGS[6]] = REG_B;
+                        REGS[6] -= 2;
+                    }
+
                 case 0b1110:
                     switch (REG_B) {
                         case 0:
@@ -443,6 +462,232 @@ int main(int argc, char** argv) {
                 default:
                     break;
             }
+        } else if ((instruction & 0b1111111100000000) == 0b1010111100000000) {
+            uint8_t opcode = instruction & 0b0000000000001111;
+            int16_t displacement = REGS[instruction & 0b0000000011100000];
+            int16_t temp;
+            if ((instruction & 0b0000000000010000) == 0) {
+                switch (opcode) {
+                    case 0b0000:
+                        if (FLAGS[0]) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b0001:
+                        if (!FLAGS[0]) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b0010:
+                        if (FLAGS[1]) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b0011:
+                        if (!FLAGS[1]) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b0100:
+                        if (FLAGS[2]) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b0101:
+                        if (!FLAGS[2]) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b0110:
+                        if (FLAGS[3]) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b0111:
+                        if (!FLAGS[3]) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b1000:
+                        if (FLAGS[0] || FLAGS[2]) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b1001:
+                        if (!(FLAGS[0] || FLAGS[2])) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b1010:
+                        if (FLAGS[1] != FLAGS[3]) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b1011:
+                        if (FLAGS[1] == FLAGS[3]) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b1100:
+                        if (FLAGS[0] || (FLAGS[1] != FLAGS[3])) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b1101:
+                        if (!FLAGS[0] && (FLAGS[1] == FLAGS[3])) {
+                            counter = displacement;
+                        }
+                        break;
+
+                    case 0b1110:
+                        counter = displacement;
+                        break;
+
+                    default:
+                        break;
+                }
+            } else {
+                switch (opcode) {
+                    case 0b0000:
+                        if (FLAGS[0]) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b0001:
+                        if (!FLAGS[0]) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b0010:
+                        if (FLAGS[1]) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b0011:
+                        if (!FLAGS[1]) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b0100:
+                        if (FLAGS[2]) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b0101:
+                        if (!FLAGS[2]) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b0110:
+                        if (FLAGS[3]) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b0111:
+                        if (!FLAGS[3]) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b1000:
+                        if (FLAGS[0] || FLAGS[2]) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b1001:
+                        if (!(FLAGS[0] || FLAGS[2])) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b1010:
+                        if (FLAGS[1] != FLAGS[3]) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b1011:
+                        if (FLAGS[1] == FLAGS[3]) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b1100:
+                        if (FLAGS[0] || (FLAGS[1] != FLAGS[3])) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b1101:
+                        if (!FLAGS[0] && (FLAGS[1] == FLAGS[3])) {
+                            temp = counter;
+                            counter = displacement;
+                            REGS[7] = temp + 2;;
+                        }
+                        break;
+
+                    case 0b1110:
+                        temp = counter;
+                        counter = displacement;
+                        REGS[7] = temp + 2;;
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+        } else if ((instruction & 0b1111000000000000) == 0b1011000000000000) {
+            int16_t displacement = instruction & 0b0000011111111111;
+            displacement *= ((instruction & 0b0000100000000000) >> 11) * -1;
+            REGS[7] = counter + 2;
+            counter += displacement;
         }
         counter++;
         // SDL
