@@ -8,11 +8,14 @@ int main(int argc, char** argv) {
     SDL_Event event;
     SDL_Renderer* renderer;
     SDL_Window* window;
+    SDL_Surface* surface;
 
     SDL_Init(SDL_INIT_EVERYTHING);
     SDL_CreateWindowAndRenderer(640, 480, 0, &window, &renderer);
+    surface = SDL_CreateRGBSurface(0, 640, 480, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
+    SDL_LockSurface(surface);
     // SDL
 
     int params = 3;
@@ -157,11 +160,31 @@ int main(int argc, char** argv) {
                     break;
 
                 case 0b1010:
-                    *REG_A = memory[PAGE << 16 + *REG_B];
+                    *REG_A = memory[(PAGE << 16) + *REG_B];
+                    *REG_A = *REG_A | memory[(PAGE << 16) + *REG_B + 1];
                     break;
 
                 case 0b1011:
-                    memory[PAGE << 16 + *REG_B] = *REG_A;
+                    if ((PAGE << 16) + *REG_B == 0xC) {
+                        // SDL
+                        SDL_LockSurface(surface);
+                        uint8_t* pixels = (uint8_t*) surface->pixels;
+                        int x = memory[0x0] & 0xFF;
+                        x = x | ((memory[0x1] & 0xFF) << 8);
+                        int y = memory[0x2] & 0xFF;
+                        y = y | ((memory[0x3] & 0xFF) << 8);
+                        int r = memory[0x4] & 0xFF;
+                        int g = memory[0x6] & 0xFF;
+                        int b = memory[0x8] & 0xFF;
+                        int a = memory[0xA] & 0xFF;
+                        pixels[4 * (x + y * 640)] = r;
+                        pixels[4 * (x + y * 640) + 1] = g;
+                        pixels[4 * (x + y * 640) + 2] = b;
+                        pixels[4 * (x + y * 640) + 3] = a;
+                        // SDL
+                    }
+                    memory[(PAGE << 16) + *REG_B] = *REG_A & 0xFF;
+                    memory[(PAGE << 16) + *REG_B + 1] = (*REG_A & 0XFF00) >> 8;
                     break;
 
                 case 0b1100:
@@ -293,17 +316,31 @@ int main(int argc, char** argv) {
                     break;
 
                 case 0b1010:
-                    *REG_A = memory[PAGE << 16 + REG_B];
+                    *REG_A = memory[(PAGE << 16) + REG_B];
+                    *REG_A = *REG_A | memory[(PAGE << 16) + REG_B + 1];
                     break;
 
                 case 0b1011:
                     if ((PAGE << 16) + REG_B == 0xC) {
                         // SDL
-                        SDL_SetRenderDrawColor(renderer, memory[0x4], memory[0x6], memory[0x8], memory[0xA]);
-                        SDL_RenderDrawPoint(renderer, memory[0x0], memory[0x2]);
+                        SDL_LockSurface(surface);
+                        uint8_t* pixels = (uint8_t*) surface->pixels;
+                        int x = memory[0x0] & 0xFF;
+                        x = x | ((memory[0x1] & 0xFF) << 8);
+                        int y = memory[0x2] & 0xFF;
+                        y = y | ((memory[0x3] & 0xFF) << 8);
+                        int r = memory[0x4] & 0xFF;
+                        int g = memory[0x6] & 0xFF;
+                        int b = memory[0x8] & 0xFF;
+                        int a = memory[0xA] & 0xFF;
+                        pixels[4 * (x + y * 640)] = r;
+                        pixels[4 * (x + y * 640) + 1] = g;
+                        pixels[4 * (x + y * 640) + 2] = b;
+                        pixels[4 * (x + y * 640) + 3] = a;
                         // SDL
                     }
-                    memory[PAGE << 16 + REG_B] = *REG_A;
+                    memory[(PAGE << 16) + REG_B] = *REG_A & 0xFF;
+                    memory[(PAGE << 16) + REG_B + 1] = (*REG_A & 0XFF00) >> 8;
                     break;
 
                 case 0b1100:
@@ -409,6 +446,13 @@ int main(int argc, char** argv) {
         }
         counter++;
         // SDL
+        SDL_RenderClear(renderer);
+        SDL_Rect rect = SDL_Rect();
+        rect.w = 640;
+        rect.h = 480;
+        rect.x = 0;
+        rect.y = 0;
+        SDL_RenderCopy(renderer, SDL_CreateTextureFromSurface(renderer, surface), &rect, &rect);
         SDL_RenderPresent(renderer);
         int i = 0;
         while (SDL_PollEvent(&event)) {
