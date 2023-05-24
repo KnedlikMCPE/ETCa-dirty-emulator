@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
         false, false, false, false
     };
 
-    const uint16_t CPUID1 = 0;
+    const uint16_t CPUID1 = 2;
     const uint16_t CPUID2 = 0;
     const uint8_t FEAT = 0;
 
