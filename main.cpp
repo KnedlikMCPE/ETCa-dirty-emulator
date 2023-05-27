@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
     DISK.close();
     DISK.open(diskPath, std::fstream::out | std::fstream::in | std::fstream::binary);
 
-    uint16_t counter = 0x8000;
+    uint32_t counter = 0x8000;
     while (true) {
         uint16_t instruction = memory[counter] << 8;
         counter++;
