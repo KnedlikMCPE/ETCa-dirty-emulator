@@ -18,15 +18,16 @@ int main(int argc, char** argv) {
     SDL_LockSurface(surface);
     // SDL
 
-    int params = 3;
+    int params = 4;
     if (argc != params) {
         std::cout << "INVALID ARGUMENTS" << std::endl;
-        std::cout << "USAGE: etca_emu <memory size> <ROM location>" << std::endl;
+        std::cout << "USAGE: etca_emu <memory size> <ROM location> <disk location" << std::endl;
         std::cout << "ALL NUMBERS HAVE TO BE IN BASE 10" << std::endl;
         return 1;
     }
     uint8_t memory[atoi(argv[1])];
     char* path = argv[2];
+    char* diskPath = argv[3];
 
     int16_t REGS[8] = {
             0, 0, 0, 0, 0, 0, 0, 0
@@ -54,6 +55,11 @@ int main(int argc, char** argv) {
         memory[i] = byte;
         i++;
     }
+
+    std::fstream  DISK;
+    DISK.open(diskPath, std::fstream::out | std::fstream::binary);
+    DISK.close();
+    DISK.open(diskPath, std::fstream::out | std::fstream::in | std::fstream::binary);
 
     uint16_t counter = 0x8000;
     while (true) {
@@ -159,8 +165,16 @@ int main(int argc, char** argv) {
                     break;
 
                 case 0b1010:
-                    *REG_A = memory[(PAGE << 16) + *REG_B];
-                    *REG_A = *REG_A | memory[(PAGE << 16) + *REG_B + 1];
+                    if ((PAGE << 16) + *REG_B == 0x26) {
+                        DISK.seekg(memory[0x20] | (memory[0x21] << 8) | (memory[0x22] << 16) | (memory[23] << 24));
+                        char s[2];
+                        DISK.read(s, 2);
+                        *REG_A = s[0];
+                        *REG_A = *REG_A | (s[1] << 8);
+                    } else {
+                        *REG_A = memory[(PAGE << 16) + *REG_B];
+                        *REG_A = *REG_A | (memory[(PAGE << 16) + *REG_B + 1] << 8);
+                    }
                     break;
 
                 case 0b1011:
@@ -181,6 +195,11 @@ int main(int argc, char** argv) {
                         pixels[4 * (x + y * 640) + 2] = b;
                         pixels[4 * (x + y * 640) + 3] = a;
                         // SDL
+                    }
+                    if ((PAGE << 16) + *REG_B == 0x26) {
+                        DISK.seekp(memory[0x20] | (memory[0x21] << 8) | (memory[0x22] << 16) | (memory[23] << 24));
+                        const char* s = (char*) memory + 0x24;
+                        DISK.write(s, 2);
                     }
                     memory[(PAGE << 16) + *REG_B] = *REG_A & 0xFF;
                     memory[(PAGE << 16) + *REG_B + 1] = (*REG_A & 0XFF00) >> 8;
@@ -331,8 +350,16 @@ int main(int argc, char** argv) {
                     break;
 
                 case 0b1010:
-                    *REG_A = memory[(PAGE << 16) + REG_B];
-                    *REG_A = *REG_A | memory[(PAGE << 16) + REG_B + 1];
+                    if ((PAGE << 16) + REG_B == 0x26) {
+                        DISK.seekg(memory[0x20] | (memory[0x21] << 8) | (memory[0x22] << 16) | (memory[23] << 24));
+                        char s[2];
+                        DISK.read(s, 2);
+                        *REG_A = s[0];
+                        *REG_A = *REG_A | (s[1] << 8);
+                    } else {
+                        *REG_A = memory[(PAGE << 16) + REG_B];
+                        *REG_A = *REG_A | (memory[(PAGE << 16) + REG_B + 1] << 8);
+                    }
                     break;
 
                 case 0b1011:
@@ -354,18 +381,25 @@ int main(int argc, char** argv) {
                         pixels[4 * (x + y * 640) + 3] = a;
                         // SDL
                     }
+                    if ((PAGE << 16) + REG_B == 0x26) {
+                        DISK.seekp(memory[0x20] | (memory[0x21] << 8) | (memory[0x22] << 16) | (memory[23] << 24));
+                        const char* s = (char*) memory + 0x25;
+                        DISK.write(s, 2);
+                    }
                     memory[(PAGE << 16) + REG_B] = *REG_A & 0xFF;
                     memory[(PAGE << 16) + REG_B + 1] = (*REG_A & 0XFF00) >> 8;
                     break;
 
                 case 0b1100:
                     *REG_A = (*REG_A << 5) | REG_B;
+                    break;
 
                 case 0b1101:
                     if ((instruction & 0b0000000011100000) == 0b11000000) {
                         memory[REGS[6]] = REG_B;
                         REGS[6] -= 2;
                     }
+                    break;
 
                 case 0b1110:
                     switch (REG_B) {
@@ -738,9 +772,10 @@ int main(int argc, char** argv) {
                 SDL_DestroyRenderer(renderer);
                 SDL_DestroyWindow(window);
                 SDL_Quit();
+                DISK.close();
                 return 0;
             }
-            if (event.type == SDL_KEYDOWN && i < 0x10) {
+            if (event.type == SDL_KEYDOWN && i < 0x20) {
                 memory[0x10 + i] = event.key.keysym.scancode;
                 i++;
             }
